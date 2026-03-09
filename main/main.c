@@ -17,7 +17,7 @@
 #include "display.h"
 #include "sdkconfig.h"
 
-#define TAG "uc8179_demo"
+#define TAG "freshlist"
 
 #if defined(CONFIG_HWE_DISPLAY_SPI1_HOST)
 # define SPIx_HOST SPI1_HOST
@@ -46,12 +46,23 @@
 #define BITMAP_SIZE (CONFIG_HWE_DISPLAY_WIDTH * CONFIG_HWE_DISPLAY_HEIGHT / 8)
 #define LV_BUF_SIZE (BITMAP_SIZE + 8)
 #define LV_TICK_PERIOD_MS 1
+#define SLEEP_TIME (60 * 23)
+
+typedef struct trans_done_ctx {
+	lv_display_t *disp;
+	SemaphoreHandle_t sema;
+} trans_done_ctx_t;
 
 static bool color_trans_done(void *user_ctx)
 {
-	lv_display_t *disp = (lv_display_t*)user_ctx;
-	// ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_2, 1));
-	lv_display_flush_ready(disp);
+	trans_done_ctx_t *trans_done = user_ctx;
+	lv_display_flush_ready(trans_done->disp);
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR(trans_done->sema, &xHigherPriorityTaskWoken);
+	if (xHigherPriorityTaskWoken == pdTRUE) {
+		portYIELD_FROM_ISR();
+		return true;
+	}
 	return false;
 }
 
@@ -68,8 +79,6 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area,
 	ESP_LOGI(TAG, "Flush callback called (%d %d %d %d),"
 			" drawing bitmap on handle %p",
 			area->x1, area->y1, area->x2, area->y2, panel_handle);
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, px_map, 8, ESP_LOG_INFO);
-	ESP_LOG_BUFFER_HEX_LEVEL(TAG, px_map + 8, 16, ESP_LOG_INFO);
 	ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel_handle,
 			area->x1, area->y1, area->x2 + 1, area->y2 + 1,
 			px_map + 8));
@@ -156,12 +165,16 @@ void app_main(void)
 	}
 	lv_display_set_buffers(disp, buf[0], buf[1], LV_BUF_SIZE,
 			LV_DISPLAY_RENDER_MODE_FULL);
+	trans_done_ctx_t trans_done_ctx = {
+		.disp = disp,
+		.sema = xSemaphoreCreateBinary(),
+	};
 	ESP_ERROR_CHECK(epd_register_event_callbacks(
 		panel_handle,
 		&(epd_io_callbacks_t) {
 			.on_color_trans_done = color_trans_done,
 		},
-		disp));
+		&trans_done_ctx));
 	esp_timer_handle_t lv_tick_timer;
 	ESP_ERROR_CHECK(esp_timer_create(
 		&(esp_timer_create_args_t) {
@@ -174,11 +187,14 @@ void app_main(void)
 	ESP_LOGI(TAG, "Initializing LVGL Display...");
 	init_display(disp);
 	ESP_LOGI(TAG, "Going into update loop...");
-	while (true) {
+	while (pdFALSE == xSemaphoreTake(trans_done_ctx.sema, 0)) {
 		vTaskDelay(pdMS_TO_TICKS(10));
 		lv_task_handler();
 	}
 	ESP_LOGI(TAG, "Loop finished");
 	stop_display(disp);
-	esp_deep_sleep_start();
+	vSemaphoreDelete(trans_done_ctx.sema);
+	ESP_ERROR_CHECK(esp_lcd_panel_io_del(io_handle));
+	ESP_LOGI(TAG, "Going to deep sleep for %d sec", SLEEP_TIME);
+	esp_deep_sleep(1000000LL * SLEEP_TIME);
 }

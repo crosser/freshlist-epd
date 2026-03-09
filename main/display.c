@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <time.h>
 #include <esp_log.h>
 #include <lvgl.h>
 #include <misc/lv_style.h>
@@ -59,6 +61,15 @@ static void draw_cb(lv_event_t *e)
 void init_display(lv_display_t *disp)
 {
 	ESP_LOGI(TAG, "init_display");
+
+	time_t now;
+	struct tm timeinfo;
+	char strftime_buf[64];
+	time(&now);
+	localtime_r(&now, &timeinfo);
+	strftime(strftime_buf, sizeof(strftime_buf), "%c %z", &timeinfo);
+	ESP_LOGI(TAG, "Time is %s", strftime_buf);
+
 	lv_obj_t *scr = lv_display_get_screen_active(disp);
 	lv_obj_add_style(scr, &screen_style, LV_PART_MAIN);
 	lv_obj_clean(scr);
@@ -77,7 +88,7 @@ void init_display(lv_display_t *disp)
 	lv_obj_add_style(lbl, &lbl_style, LV_PART_MAIN);
 	lv_obj_set_style_bg_opa(lbl, LV_OPA_100, LV_PART_MAIN);
 	lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
-	lv_label_set_text_static(lbl, "LVGL");
+	lv_label_set_text(lbl, strftime_buf);
 }
 
 void stop_display(lv_display_t *disp)
