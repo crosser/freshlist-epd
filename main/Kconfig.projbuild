@@ -1,0 +1,71 @@
+# Kconfig file for UC8179 SPI E-Paper panels
+
+menu "SPI Controller and Pins (Board dependent)"
+
+	choice
+		prompt "SPI Host for the display controller"
+		default HWE_DISPLAY_SPI2_HOST
+		config HWE_DISPLAY_SPI1_HOST
+			bool "SPI1_HOST"
+		config HWE_DISPLAY_SPI2_HOST
+			bool "SPI2_HOST"
+	endchoice
+
+	config HWE_DISPLAY_SPI_SCK
+		int "SCK (Clock) pin number of SPI bus"
+
+	config HWE_DISPLAY_SPI_MOSI
+		int "MOSI (Master Out Slave In) pin number of SPI bus"
+
+	config HWE_DISPLAY_SPI_MISO
+		int "MISO (Master In Slave Out) pin number of SPI bus"
+
+endmenu
+
+menu "E-Paper Panel Pins (Panel dependent)"
+
+	config HWE_DISPLAY_SPI_FREQUENCY
+		int "SPI Frequency for the Display Controller"
+		default 2000000
+
+	config HWE_DISPLAY_SPI_DC
+		int "DC (Data / Command) pin number for display controller"
+
+	config HWE_DISPLAY_SPI_CS
+		int "CS (Chip Select) pin number for display controller"
+
+	config HWE_DISPLAY_RST
+		int "RST (Reset device) pin number for display controller"
+
+	choice
+		prompt "RST level when device is active"
+		default HWE_DISPLAY_RST_ACTIVE_LEVEL_HIGH
+		config HWE_DISPLAY_RST_ACTIVE_LEVEL_HIGH
+			bool "Device active when RST pin is HIGH"
+		config HWE_DISPLAY_RST_ACTIVE_LEVEL_LOW
+			bool "Device active when RST pin is LOW"
+	endchoice
+
+	config HWE_DISPLAY_BUSY
+		int "BUSY pin number for display controller"
+
+	choice
+		prompt "BUSY pin level when display is busy"
+		default HWE_DISPLAY_BUSY_LEVEL_LOW
+		config HWE_DISPLAY_BUSY_LEVEL_LOW
+			bool "BUSY when pin is LOW"
+		config HWE_DISPLAY_BUSY_LEVEL_HIGH
+			bool "BUSY when pin is HIGH"
+	endchoice
+
+	config HWE_DISPLAY_LED
+		int "LED to turn on while display is updating"
+		default -1
+
+	config HWE_DISPLAY_WIDTH
+		int "Display width"
+
+	config HWE_DISPLAY_HEIGHT
+		int "Display height"
+
+endmenu

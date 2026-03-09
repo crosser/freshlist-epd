@@ -1,0 +1,3 @@
+[submodule "components/esp-lcd-panel-uc8179"]
+	path = components/esp-lcd-panel-uc8179
+	url = https://www.average.org/cgit/esp-lcd-panel-uc8179.git
