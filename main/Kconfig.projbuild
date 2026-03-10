@@ -69,3 +69,25 @@ menu "E-Paper Panel Pins (Panel dependent)"
 		int "Display height"
 
 endmenu
+
+menu "WiFi name and WPAx password"
+
+	config WIFI_SSID
+		string "SSID to connect"
+
+	config WPA_PASSWORD
+		string "WPA[2,3] Password"
+
+endmenu
+
+menu "Time Zone, URL, miscellany"
+
+	config TZSPEC
+		string "Timezone with daylight change rules"
+		default "CET-1CEST,M3.5.0/2,M10.5.0/3"
+
+	config URL
+		string "URL of the last changed files .csv"
+		default "https://downloads.example.com/latest.txt"
+
+endmenu
