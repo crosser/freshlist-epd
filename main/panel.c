@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 #include <esp_err.h>
 #include <esp_log.h>
 #include <esp_sleep.h>
@@ -85,7 +86,7 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area,
 			px_map + 8));
 }
 
-void init_panel(void)
+void run_panel(QueueHandle_t stream)
 {
 	ESP_LOGI(TAG, "Initializing SPI bus");
 	ESP_ERROR_CHECK(spi_bus_initialize(SPIx_HOST,

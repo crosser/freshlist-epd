@@ -1,6 +1,6 @@
 #ifndef _PANEL_H
 #define _PANEL_H
 
-void init_panel(void);
+void run_panel(QueueHandle_t stream);
 
 #endif
