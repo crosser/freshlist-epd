@@ -29,7 +29,7 @@
 
 #define BUFFER_SIZE 256
 
-RTC_DATA_ATTR static struct tm when_last = {};
+RTC_DATA_ATTR static struct tm last_modified = {};
 
 char *junk[] = {
 	".1080p",
@@ -232,11 +232,15 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
 		ESP_LOGI(TAG, "Event HTTP_EVENT_HEADERS_SENT");
 		break;
 	case HTTP_EVENT_ON_HEADER:
-		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_HEADER");
+		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_HEADER %s -> %s",
+				evt->header_key, evt->header_value);
+		if (!strcasecmp(evt->header_key, "Last-Modified")) {
+			strptime(evt->header_value,
+				"%a, %d %b %Y %T %Z", &last_modified);
+		}
 		break;
 	case HTTP_EVENT_ON_HEADERS_COMPLETE:
 		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_HEADERS_COMPLETE");
-		when_last = (struct tm){};
 		break;
 	case HTTP_EVENT_ON_STATUS_CODE:
 		// Apparently len == 4 and data is 32bit status code?
@@ -296,7 +300,10 @@ static void httpc_run(void *user_ctx)
 			.user_data = &data_ctx,
 		}
 	);
-	// esp_http_client_set_header(client, "If-Modified-Since", c_last);
+	char lmbuf[32] = {};
+	strftime(lmbuf, sizeof(lmbuf), "%a, %d %b %Y %T %Z", &last_modified);
+	ESP_LOGI(TAG, "Adding If-Modified-Since: %s", lmbuf);
+	esp_http_client_set_header(client, "If-Modified-Since", lmbuf);
 
 	esp_err_t err = esp_http_client_perform(client);
 	if (err == ESP_OK) {
