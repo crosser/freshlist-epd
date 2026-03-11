@@ -9,7 +9,7 @@
 #include <esp_http_client.h>
 // #include <esp_tls.h>
 #include "httpc.h"
-#include "display.h"
+#include "lvscreen.h"
 
 #if defined __has_include
 #  if __has_include("../url.h")

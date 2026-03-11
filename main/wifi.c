@@ -19,7 +19,7 @@
 #include <lwip/dhcp6.h>
 #include <nvs_flash.h>
 #include "wifi.h"
-#include "display.h"
+#include "lvscreen.h"
 
 struct wifi_creds {
         char *ssid;

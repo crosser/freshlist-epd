@@ -9,7 +9,7 @@
 
 #include "wifi.h"
 #include "httpc.h"
-#include "panel.h"
+#include "display.h"
 
 #define TAG "freshlist"
 
@@ -40,8 +40,8 @@ void app_main(void)
 			ESP_LOGI(TAG, "Line from queue: %s", line);
 			free(line);
 		}
-		ESP_LOGI(TAG, "Initialize display panel");
-		run_panel(stream);
+		ESP_LOGI(TAG, "Update display");
+		run_display(stream);
 	}
 	ESP_LOGI(TAG, "Deinitialize wifi");
 	deinit_wifi();
