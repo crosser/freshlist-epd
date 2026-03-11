@@ -18,6 +18,7 @@
 void app_main(void)
 {
 	esp_err_t res;
+	void *null = NULL;
 
 	QueueHandle_t stream = xQueueCreate(4, sizeof(void*));
 	ESP_LOGI(TAG, "Initialize wifi");
@@ -29,6 +30,15 @@ void app_main(void)
 			/* It is a real error, push a message to the queue */
 			char *merr = strdup(esp_err_to_name(res));
 			xQueueSend(stream, &merr, portMAX_DELAY);
+			xQueueSend(stream, &null, portMAX_DELAY);
+		}
+		char *line;
+		for (xQueueReceive(stream, &line, portMAX_DELAY);
+				line;
+				xQueueReceive(stream, &line, portMAX_DELAY))
+		{
+			ESP_LOGI(TAG, "Line from queue: %s", line);
+			free(line);
 		}
 		ESP_LOGI(TAG, "Initialize display panel");
 		run_panel(stream);

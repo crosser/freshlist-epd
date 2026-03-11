@@ -51,6 +51,7 @@ typedef struct {
 	char *buffer;
 	size_t capacity;
 	size_t current;
+	QueueHandle_t stream;  // We need a copy because http_ctx will go
 	http_ctx_t *http_ctx;
 } data_ctx_t;
 
@@ -195,7 +196,10 @@ static void process_data(data_ctx_t *data_ctx, size_t len, char *chunk)
 		// pass it to the function. Otherwise save in the data_ctx.
 		if (got_nl || !len) {
 			if (ln) {  // FIN could happen with empty save-data
-				process_line(data_ctx->index++, ln);
+				// process_line(data_ctx->index++, ln);
+				char *mln = strdup(ln);
+				xQueueSend(data_ctx->stream, &mln,
+						portMAX_DELAY);
 			}
 			data_ctx->current = 0;
 		} else {  // Don't call process_line, but save it
@@ -235,7 +239,14 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
 		when_last = (struct tm){};
 		break;
 	case HTTP_EVENT_ON_STATUS_CODE:
-		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_STATUS_CODE");
+		// Apparently len == 4 and data is 32bit status code?
+		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_STATUS_CODE %d",
+				*(uint32_t*)(evt->data));
+		if (*(uint32_t*)(evt->data) == 200) {
+			data_ctx->http_ctx->ret = ESP_ERR_NOT_FINISHED;
+			xSemaphoreGive(data_ctx->http_ctx->done);
+			data_ctx->http_ctx = NULL; // it is in parent stack
+		}
 		break;
 	case HTTP_EVENT_ON_DATA:
 		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_DATA len=%d",
@@ -270,6 +281,7 @@ static void httpc_run(void *user_ctx)
 		.buffer = buf,
 		.capacity = BUFFER_SIZE - 1,
 		.current = 0,
+		.stream = http_ctx_ptr->stream,
 		.http_ctx = http_ctx_ptr,
 	};
 
@@ -284,6 +296,7 @@ static void httpc_run(void *user_ctx)
 			.user_data = &data_ctx,
 		}
 	);
+	// esp_http_client_set_header(client, "If-Modified-Since", c_last);
 
 	esp_err_t err = esp_http_client_perform(client);
 	if (err == ESP_OK) {
@@ -295,10 +308,14 @@ static void httpc_run(void *user_ctx)
 				esp_err_to_name(err));
 		http_ctx_ptr->ret = err;
 	}
+	void *null = NULL;
+	xQueueSend(data_ctx.stream, &null, portMAX_DELAY);
 
 	esp_http_client_cleanup(client);
 	ESP_LOGI(TAG, "Httpc task did the deed and is about to finish");
-	xSemaphoreGive(http_ctx_ptr->done);
+	if (data_ctx.http_ctx) {  // maybe already given from the cb
+		xSemaphoreGive(http_ctx_ptr->done);
+	}
 	vTaskDelete(NULL);
 }
 
@@ -313,5 +330,6 @@ esp_err_t httpc(QueueHandle_t stream)
 	ESP_LOGI(TAG, "Httpc task launched");
 	xSemaphoreTake(http_ctx.done, portMAX_DELAY);
 	vSemaphoreDelete(http_ctx.done);
+	ESP_LOGI(TAG, "Httpc returning, with task possibly running");
 	return http_ctx.ret;
 }
