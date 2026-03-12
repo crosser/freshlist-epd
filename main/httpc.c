@@ -241,6 +241,13 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
 		break;
 	case HTTP_EVENT_ON_HEADERS_COMPLETE:
 		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_HEADERS_COMPLETE");
+		// And first thing, send last modified as line zero
+		if (!data_ctx->http_ctx) {  // we are sending data
+			char *lmbuf = malloc(36);  // datetime is 29 bytes
+			strftime(lmbuf, 36, "\"%a, %d %b %Y %T %Z\",\"\"",
+					&last_modified);
+			xQueueSend(data_ctx->stream, &lmbuf, portMAX_DELAY);
+		}
 		break;
 	case HTTP_EVENT_ON_STATUS_CODE:
 		// Apparently len == 4 and data is 32bit status code?

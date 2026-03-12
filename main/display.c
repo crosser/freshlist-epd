@@ -117,7 +117,7 @@ void run_display(QueueHandle_t stream)
 		},
 		&io_handle
 	));
-	// NOTE: Please call gpio_install_isr_service() manually
+	// NOTE: call gpio_install_isr_service() manually
 	// before esp_lcd_new_panel_uc8179() because gpio_isr_handler_add()
 	// is called in esp_lcd_new_panel_uc8179()
 	ESP_LOGI(TAG, "Install ISR service for GPIO");
@@ -147,11 +147,6 @@ void run_display(QueueHandle_t stream)
 	ESP_LOGI(TAG, "Initializing e-Paper display...");
 	ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
 	vTaskDelay(pdMS_TO_TICKS(100));
-	// ESP_ERROR_CHECK(epaper_panel_set_custom_lut(panel_handle, ...);
-	// vTaskDelay(pdMS_TO_TICKS(100));
-
-	// SemaphoreHandle_t epd_ready = xSemaphoreCreateBinary();
-	// Semaphore is created initially "taken"
 	ESP_LOGI(TAG, "Preparing lvgl display...");
 	lv_init();
 	lv_display_t *disp = lv_display_create(CONFIG_HWE_DISPLAY_WIDTH,
@@ -189,8 +184,17 @@ void run_display(QueueHandle_t stream)
 	ESP_LOGI(TAG, "Initializing LVGL Display...");
 	init_screen(disp);
 	ESP_LOGI(TAG, "Going into update loop...");
+	int linecount = 0;
 	while (pdFALSE == xSemaphoreTake(trans_done_ctx.sema, 0)) {
-		vTaskDelay(pdMS_TO_TICKS(10));
+		char *line = NULL;
+		while (pdTRUE == xQueueReceive(stream, &line,
+					pdMS_TO_TICKS(10))) {
+			if (line) {
+				write_screen(disp, linecount, line);
+				linecount++;
+				free(line);
+			}
+		}
 		lv_task_handler();
 	}
 	ESP_LOGI(TAG, "Loop finished");

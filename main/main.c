@@ -32,19 +32,11 @@ void app_main(void)
 			xQueueSend(stream, &merr, portMAX_DELAY);
 			xQueueSend(stream, &null, portMAX_DELAY);
 		}
-		char *line;
-		for (xQueueReceive(stream, &line, portMAX_DELAY);
-				line;
-				xQueueReceive(stream, &line, portMAX_DELAY))
-		{
-			ESP_LOGI(TAG, "Line from queue: %s", line);
-			free(line);
-		}
 		ESP_LOGI(TAG, "Update display");
 		run_display(stream);
 	}
 	ESP_LOGI(TAG, "Deinitialize wifi");
-	deinit_wifi();
+	deinit_wifi();  // Could do this earlier and save energy... Some time.
 	vQueueDelete(stream);
 	ESP_LOGI(TAG, "Going to deep sleep for %d sec", SLEEP_TIME);
 	esp_deep_sleep(1000000LL * SLEEP_TIME);

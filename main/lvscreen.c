@@ -91,6 +91,11 @@ void init_screen(lv_display_t *disp)
 	lv_label_set_text(lbl, strftime_buf);
 }
 
+void write_screen(lv_display_t *disp, int linecount, char *line)
+{
+	ESP_LOGI(TAG, "Drawing line %d: %s", linecount, line);
+}
+
 void stop_screen(lv_display_t *disp)
 {
 	ESP_LOGI(TAG, "stop_display");
