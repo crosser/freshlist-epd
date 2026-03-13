@@ -12,6 +12,9 @@ static const char *TAG = "LV display";
 #define PFX_WIDTH (CONFIG_HWE_DISPLAY_WIDTH / 4)
 #define MSG_WIDTH (CONFIG_HWE_DISPLAY_WIDTH - (CONFIG_HWE_DISPLAY_WIDTH / 4))
 
+LV_FONT_DECLARE(UbuntuSans);
+LV_FONT_DECLARE(UbuntuSansMono);
+
 static LV_STYLE_CONST_INIT(screen_style,
 	((static lv_style_const_prop_t []){
 		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
@@ -25,6 +28,7 @@ static LV_STYLE_CONST_INIT(main_pfx_style,
 		LV_STYLE_CONST_WIDTH(PFX_WIDTH),
 		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
 		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_FONT(&UbuntuSansMono),
 		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
 		LV_STYLE_CONST_PROPS_END,
 	}));
@@ -35,6 +39,7 @@ static LV_STYLE_CONST_INIT(main_msg_style,
 		LV_STYLE_CONST_WIDTH(MSG_WIDTH),
 		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
 		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_FONT(&UbuntuSans),
 		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
 		LV_STYLE_CONST_PROPS_END,
 	}));
@@ -165,7 +170,7 @@ static void process_line(lv_display_t *disp, int n, char *l)
 	*w = '\0';
 	if (i < 2) e[i++] = f;
 	else ESP_LOGE(TAG, "csv %d: %s", i, f);
-	if (n) show_entry(disp, n, e[0], e[1]);
+	if (n) show_entry(disp, n - 1, e[0], e[1]);
 	else show_status(disp, e[0]);
 }
 

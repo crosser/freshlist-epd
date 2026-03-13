@@ -200,5 +200,6 @@ void run_display(QueueHandle_t stream)
 	ESP_LOGI(TAG, "Loop finished");
 	stop_screen(disp);
 	vSemaphoreDelete(trans_done_ctx.sema);
+	vTaskDelay(pdMS_TO_TICKS(2000));
 	ESP_ERROR_CHECK(esp_lcd_panel_io_del(io_handle));
 }
