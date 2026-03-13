@@ -4,8 +4,13 @@
 #include <lvgl.h>
 #include <misc/lv_style.h>
 #include "lvscreen.h"
+#include "sdkconfig.h"
 
 static const char *TAG = "LV display";
+
+#define LINE_HEIGHT (CONFIG_HWE_DISPLAY_HEIGHT / (DISPLAY_ROWS + 2))
+#define PFX_WIDTH (CONFIG_HWE_DISPLAY_WIDTH / 4)
+#define MSG_WIDTH (CONFIG_HWE_DISPLAY_WIDTH - (CONFIG_HWE_DISPLAY_WIDTH / 4))
 
 static LV_STYLE_CONST_INIT(screen_style,
 	((static lv_style_const_prop_t []){
@@ -14,48 +19,154 @@ static LV_STYLE_CONST_INIT(screen_style,
 		LV_STYLE_CONST_PROPS_END,
 	}));
 
-static LV_STYLE_CONST_INIT(lbl_style,
+static LV_STYLE_CONST_INIT(main_pfx_style,
 	((static lv_style_const_prop_t []){
-		LV_STYLE_CONST_PAD_TOP(10),
-		LV_STYLE_CONST_PAD_BOTTOM(10),
-		LV_STYLE_CONST_PAD_LEFT(10),
-		LV_STYLE_CONST_PAD_RIGHT(10),
-		LV_STYLE_CONST_RADIUS(20),
-		LV_STYLE_CONST_BORDER_WIDTH(5),
-		LV_STYLE_CONST_BORDER_COLOR(LV_COLOR_MAKE(255, 255, 255)),
-		LV_STYLE_CONST_BORDER_OPA(LV_OPA_100),
-		LV_STYLE_CONST_TEXT_ALIGN(LV_ALIGN_CENTER),
-		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
+		LV_STYLE_CONST_HEIGHT(LINE_HEIGHT),
+		LV_STYLE_CONST_WIDTH(PFX_WIDTH),
 		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
-		LV_STYLE_CONST_BG_OPA(LV_OPA_0),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
 		LV_STYLE_CONST_PROPS_END,
 	}));
 
-static void draw_cb(lv_event_t *e)
-{
-	lv_obj_t *obj = lv_event_get_target(e);
-	lv_draw_task_t *draw_task = lv_event_get_draw_task(e);
-	lv_draw_dsc_base_t *base_dsc = lv_draw_task_get_draw_dsc(draw_task);
-	ESP_LOGI(TAG, "Draw task called, part %d, expect not %d",
-			base_dsc->part, LV_PART_MAIN);
-	if (base_dsc->part != LV_PART_MAIN) return;
+static LV_STYLE_CONST_INIT(main_msg_style,
+	((static lv_style_const_prop_t []){
+		LV_STYLE_CONST_HEIGHT(LINE_HEIGHT),
+		LV_STYLE_CONST_WIDTH(MSG_WIDTH),
+		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
+		LV_STYLE_CONST_PROPS_END,
+	}));
 
-	lv_area_t obj_coords;
-	lv_obj_get_coords(obj, &obj_coords);
-	lv_draw_line_dsc_t line;
-	lv_draw_line_dsc_init(&line);
-	line.color = lv_color_make(255, 255, 255);
-	line.width = 5;
-	line.p1.x = obj_coords.x1 + 5;
-	line.p1.y = obj_coords.y1 + 5;
-	line.p2.x = obj_coords.x2 - 5;
-	line.p2.y = obj_coords.y2 - 5;
-	lv_draw_line(base_dsc->layer, &line);
-	line.p1.x = obj_coords.x1 + 5;
-	line.p1.y = obj_coords.y2 - 5;
-	line.p2.x = obj_coords.x2 - 5;
-	line.p2.y = obj_coords.y1 + 5;
-	lv_draw_line(base_dsc->layer, &line);
+static LV_STYLE_CONST_INIT(status_style,
+	((static lv_style_const_prop_t []){
+		LV_STYLE_CONST_HEIGHT(LINE_HEIGHT),
+		LV_STYLE_CONST_WIDTH(MSG_WIDTH),
+		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
+		LV_STYLE_CONST_PROPS_END,
+	}));
+
+static struct panes {
+	struct {
+		lv_obj_t *pfx;
+		lv_obj_t *msg;
+	} main[DISPLAY_ROWS];
+	lv_obj_t *status;
+} panes = {0};
+
+char *junk[] = {
+	".1080p",
+	".720p",
+	".HEVC",
+	".BDRIP",
+	".WEBRIP",
+	NULL,
+};
+
+static void show_status(lv_display_t *disp, char *msg)
+{
+	ESP_LOGD(TAG, "status msg=%s", msg);
+	lv_obj_t *lbl = panes.status;
+	lv_obj_clean(lbl);
+	lv_label_set_text(lbl, msg);
+}
+
+static void show_entry(lv_display_t *disp, int n, char *pfx, char *msg)
+{
+	ESP_LOGD(TAG, "%d: pfx=%s, msg=%s", n, pfx, msg);
+	struct tm when = {};
+	char tbuf[32] = {};
+	strptime(pfx, "%a %b %d %T %Y", &when);
+	strftime(tbuf, sizeof(tbuf), "%d %H:%M", &when);
+
+	// Let's compress the message
+	char *r, *w, *dot = NULL;
+	enum {
+		pass,
+		wparn,
+		wbrkt,
+	} state;
+	for (r=msg, w=msg, state = pass; *r; r++) {
+		if (state == pass) switch (*r) {
+			case '[': state = wbrkt; break;
+			case '(': state = wparn; break;
+			default: break;
+		}
+		if (state == pass) {
+			if (*r == '.') dot = w;
+			*(w++) = *r;
+		}
+		switch (state) {
+		case wparn:
+			if (*r == ')') state = pass;
+			break;
+		case wbrkt:
+			if (*r == ']') state = pass;
+			break;
+		default:
+			break;
+		}
+	}
+	if (dot) w = dot;
+	*(w--) = '\0';
+	while (w > msg && *w == ' ') *(w--) = '\0';
+	// Let's try to get rid of more non-essential text
+	for (char **s = junk; *s; s++) {
+		if ((w = strstr(msg, *s))) {
+			*w = '\0';
+		}
+	}
+	// Finally, there may be whitespace at the beginning
+	while (*msg == ' ') msg++;  // Guaranteed to terminate on NUL
+
+	ESP_LOGI(TAG, "Compressed: %d: tbuf=%s, msg=%s", n, tbuf, msg);
+	lv_obj_t *lbl;
+	lbl = panes.main[n].pfx;
+	lv_obj_clean(lbl);
+	lv_label_set_text(lbl, tbuf);
+	lbl = panes.main[n].msg;
+	lv_obj_clean(lbl);
+	lv_label_set_text(lbl, msg);
+}
+
+static void process_line(lv_display_t *disp, int n, char *l)
+{
+	char *r, *w, *f = l;
+	bool in, quote = false;
+	int i = 0;
+	char *e[2] = {};
+
+	ESP_LOGD(TAG, "Line %d: %s", n, l);
+	for (r=l, w=l, in=false; *r; r++) {
+		switch (*r) {
+		case '"':
+			if (quote) *(w++) = *r;
+			quote = in;
+			in = !in;
+			break;
+		case ',':
+			quote = false;
+			if (!in) {
+				*(w++) = '\0';
+				if (i < 2) e[i++] = f;
+				else ESP_LOGE(TAG, "csv %d: %s", i, f);
+				f = w;
+			}
+			break;
+		default:
+			quote = false;
+			*(w++) = *r;
+			break;
+		}
+	}
+	*w = '\0';
+	if (i < 2) e[i++] = f;
+	else ESP_LOGE(TAG, "csv %d: %s", i, f);
+	if (n) show_entry(disp, n, e[0], e[1]);
+	else show_status(disp, e[0]);
 }
 
 void init_screen(lv_display_t *disp)
@@ -74,26 +185,42 @@ void init_screen(lv_display_t *disp)
 	lv_obj_add_style(scr, &screen_style, LV_PART_MAIN);
 	lv_obj_clean(scr);
 
-	lv_obj_t *frm = lv_label_create(scr);
-	lv_obj_add_style(frm, &lbl_style, LV_PART_MAIN);
-	lv_obj_set_size(frm, lv_pct(90), lv_pct(90));
-	lv_obj_align(frm, LV_ALIGN_CENTER, 0, 0);
-	lv_obj_set_style_text_align(frm, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-	lv_label_set_text_static(frm, " ");
-	lv_obj_add_event_cb(frm, draw_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
-	lv_obj_add_flag(frm, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
-	// lv_obj_invalidate(frm);
+	lv_obj_t *obj;
+	for (int i = 0; i < DISPLAY_ROWS; i++) {
+		obj = lv_label_create(scr);
+		lv_obj_add_style(obj, &main_pfx_style, LV_PART_MAIN);
+		if (i) {
+			lv_obj_align_to(obj, panes.main[i-1].pfx,
+					LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+		} else {
+			lv_obj_align(obj, LV_ALIGN_TOP_LEFT, 0, 0);
+		}
+		lv_label_set_text_static(obj, " ");
+		panes.main[i].pfx = obj;
 
-	lv_obj_t *lbl = lv_label_create(scr);
-	lv_obj_add_style(lbl, &lbl_style, LV_PART_MAIN);
-	lv_obj_set_style_bg_opa(lbl, LV_OPA_100, LV_PART_MAIN);
-	lv_obj_align(lbl, LV_ALIGN_CENTER, 0, 0);
-	lv_label_set_text(lbl, strftime_buf);
+		obj = lv_label_create(scr);
+		lv_obj_add_style(obj, &main_msg_style, LV_PART_MAIN);
+		lv_obj_align_to(obj, panes.main[i].pfx,
+				LV_ALIGN_OUT_RIGHT_MID, 2, 0);
+		lv_label_set_text_static(obj, " ");
+		panes.main[i].msg = obj;
+	}
+	obj = lv_label_create(scr);
+	lv_obj_add_style(obj, &status_style, LV_PART_MAIN);
+	lv_obj_align(obj, LV_ALIGN_BOTTOM_MID, 0, 0);
+	lv_label_set_text_static(obj, " ");
+	panes.status = obj;
 }
 
-void write_screen(lv_display_t *disp, int linecount, char *line)
+void write_screen(lv_display_t *disp, int row, char *msg)
 {
-	ESP_LOGI(TAG, "Drawing line %d: %s", linecount, line);
+	ESP_LOGI(TAG, "Drawing line %d: %s", row, msg);
+	if (row >= DISPLAY_ROWS) {
+		ESP_LOGI(TAG, "draw row number %d is too big: ceiling %d",
+				row, DISPLAY_ROWS);
+		return;
+	}
+	process_line(disp, row, msg);
 }
 
 void stop_screen(lv_display_t *disp)

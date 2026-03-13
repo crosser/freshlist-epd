@@ -31,15 +31,6 @@
 
 RTC_DATA_ATTR static struct tm last_modified = {};
 
-char *junk[] = {
-	".1080p",
-	".720p",
-	".HEVC",
-	".BDRIP",
-	".WEBRIP",
-	NULL,
-};
-
 typedef struct {
 	QueueHandle_t stream;
 	SemaphoreHandle_t done;
@@ -54,93 +45,6 @@ typedef struct {
 	QueueHandle_t stream;  // We need a copy because http_ctx will go
 	http_ctx_t *http_ctx;
 } data_ctx_t;
-
-static void show_entry(int n, char *pfx, char *msg)
-{
-	ESP_LOGD(TAG, "%d: pfx=%s, msg=%s", n, pfx, msg);
-	struct tm when = {};
-	char tbuf[32] = {};
-	strptime(pfx, "%a %b %d %T %Y", &when);
-	strftime(tbuf, sizeof(tbuf), "%d %H:%M", &when);
-
-	// Let's compress the message
-	char *r, *w, *dot = NULL;
-	enum {
-		pass,
-		wparn,
-		wbrkt,
-	} state;
-	for (r=msg, w=msg, state = pass; *r; r++) {
-		if (state == pass) switch (*r) {
-			case '[': state = wbrkt; break;
-			case '(': state = wparn; break;
-			default: break;
-		}
-		if (state == pass) {
-			if (*r == '.') dot = w;
-			*(w++) = *r;
-		}
-		switch (state) {
-		case wparn:
-			if (*r == ')') state = pass;
-			break;
-		case wbrkt:
-			if (*r == ']') state = pass;
-			break;
-		default:
-			break;
-		}
-	}
-	if (dot) w = dot;
-	*(w--) = '\0';
-	while (w > msg && *w == ' ') *(w--) = '\0';
-	// Let's try to get rid of more non-essential text
-	for (char **s = junk; *s; s++) {
-		if ((w = strstr(msg, *s))) {
-			*w = '\0';
-		}
-	}
-	// Finally, there may be whitespace at the beginning
-	while (*msg == ' ') msg++;  // Guaranteed to terminate on NUL
-
-	ESP_LOGI(TAG, "Compressed: %d: pfx=%s, msg=%s", n, pfx, msg);
-}
-
-static void process_line(int n, char *l)
-{
-	char *r, *w, *f = l;
-	bool in, quote = false;
-	int i = 0;
-	char *e[2] = {};
-
-	ESP_LOGD(TAG, "Line %d: %s", n, l);
-	for (r=l, w=l, in=false; *r; r++) {
-		switch (*r) {
-		case '"':
-			if (quote) *(w++) = *r;
-			quote = in;
-			in = !in;
-			break;
-		case ',':
-			quote = false;
-			if (!in) {
-				*(w++) = '\0';
-				if (i < 2) e[i++] = f;
-				else ESP_LOGE(TAG, "csv %d: %s", i, f);
-				f = w;
-			}
-			break;
-		default:
-			quote = false;
-			*(w++) = *r;
-			break;
-		}
-	}
-	*w = '\0';
-	if (i < 2) e[i++] = f;
-	else ESP_LOGE(TAG, "csv %d: %s", i, f);
-	show_entry(n, e[0], e[1]);
-}
 
 static inline bool eol(char c)
 {
