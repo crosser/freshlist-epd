@@ -9,7 +9,7 @@
 static const char *TAG = "LV display";
 
 #define LINE_HEIGHT (CONFIG_HWE_DISPLAY_HEIGHT / (DISPLAY_ROWS + 2))
-#define PFX_WIDTH (CONFIG_HWE_DISPLAY_WIDTH / 4)
+#define PFX_WIDTH (CONFIG_HWE_DISPLAY_WIDTH * 2 / 7)
 #define MSG_WIDTH (CONFIG_HWE_DISPLAY_WIDTH - (CONFIG_HWE_DISPLAY_WIDTH / 4))
 
 LV_FONT_DECLARE(UbuntuSans);
@@ -47,14 +47,15 @@ static LV_STYLE_CONST_INIT(main_msg_style,
 static LV_STYLE_CONST_INIT(status_style,
 	((static lv_style_const_prop_t []){
 		LV_STYLE_CONST_HEIGHT(LINE_HEIGHT),
-		LV_STYLE_CONST_WIDTH(MSG_WIDTH),
 		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
 		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_FONT(&UbuntuSansMono),
 		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
 		LV_STYLE_CONST_PROPS_END,
 	}));
 
 static struct panes {
+	lv_obj_t *title;
 	struct {
 		lv_obj_t *pfx;
 		lv_obj_t *msg;
@@ -74,9 +75,20 @@ char *junk[] = {
 static void show_status(lv_display_t *disp, char *msg)
 {
 	ESP_LOGD(TAG, "status msg=%s", msg);
-	lv_obj_t *lbl = panes.status;
+	time_t now;
+	struct tm timeinfo;
+	char strftime_buf[64];
+	time(&now);
+	localtime_r(&now, &timeinfo);
+	strftime(strftime_buf, sizeof(strftime_buf),
+			"%c %z", &timeinfo);
+	lv_obj_t *lbl;
+	lbl = panes.title;
 	lv_obj_clean(lbl);
-	lv_label_set_text(lbl, msg);
+	lv_label_set_text(lbl, strftime_buf);
+	lbl = panes.status;
+	lv_obj_clean(lbl);
+	lv_label_set_text_fmt(lbl, "Last: %s", msg);
 }
 
 static void show_entry(lv_display_t *disp, int n, char *pfx, char *msg)
@@ -85,7 +97,7 @@ static void show_entry(lv_display_t *disp, int n, char *pfx, char *msg)
 	struct tm when = {};
 	char tbuf[32] = {};
 	strptime(pfx, "%a %b %d %T %Y", &when);
-	strftime(tbuf, sizeof(tbuf), "%d %H:%M", &when);
+	strftime(tbuf, sizeof(tbuf), "%m-%d %H:%M", &when);
 
 	// Let's compress the message
 	char *r, *w, *dot = NULL;
@@ -191,6 +203,11 @@ void init_screen(lv_display_t *disp)
 	lv_obj_clean(scr);
 
 	lv_obj_t *obj;
+	obj = lv_label_create(scr);
+	lv_obj_add_style(obj, &status_style, LV_PART_MAIN);
+	lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 0);
+	lv_label_set_text_static(obj, " ");
+	panes.title = obj;
 	for (int i = 0; i < DISPLAY_ROWS; i++) {
 		obj = lv_label_create(scr);
 		lv_obj_add_style(obj, &main_pfx_style, LV_PART_MAIN);
@@ -198,7 +215,8 @@ void init_screen(lv_display_t *disp)
 			lv_obj_align_to(obj, panes.main[i-1].pfx,
 					LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
 		} else {
-			lv_obj_align(obj, LV_ALIGN_TOP_LEFT, 0, 0);
+			lv_obj_align(obj, LV_ALIGN_OUT_TOP_MID,
+					0, LINE_HEIGHT * 2);
 		}
 		lv_label_set_text_static(obj, " ");
 		panes.main[i].pfx = obj;
