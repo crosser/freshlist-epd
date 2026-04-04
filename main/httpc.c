@@ -251,3 +251,8 @@ esp_err_t httpc(QueueHandle_t stream)
 	ESP_LOGI(TAG, "Httpc returning, with task possibly running");
 	return http_ctx.ret;
 }
+
+void http_invalidate_last_modified()
+{
+	last_modified = (struct tm) {};
+}

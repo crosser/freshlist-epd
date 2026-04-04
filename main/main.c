@@ -31,6 +31,7 @@ void app_main(void)
 			char *merr = strdup(esp_err_to_name(res));
 			xQueueSend(stream, &merr, portMAX_DELAY);
 			xQueueSend(stream, &null, portMAX_DELAY);
+			http_invalidate_last_modified();
 		}
 		ESP_LOGI(TAG, "Update display");
 		run_display(stream);
