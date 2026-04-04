@@ -90,7 +90,6 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 
 	switch (event_id) {
 	case WIFI_EVENT_STA_START:
-		//draw_status(arg, "Scanning...");
 		ESP_ERROR_CHECK(esp_wifi_scan_start(&(wifi_scan_config_t){
 					.scan_type = WIFI_SCAN_TYPE_ACTIVE,
 				}, false));
@@ -166,11 +165,6 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 		wifi_event_sta_connected_t *conn =
 			(wifi_event_sta_connected_t *)event_data;
 		ESP_LOGI(TAG, "Connected %.*s", conn->ssid_len, conn->ssid);
-		//char ssid_buf[33];
-		//snprintf(ssid_buf, sizeof(ssid_buf),
-		//		"%.*s", conn->ssid_len, conn->ssid);
-		//draw_status(arg, ssid_buf);
-		// Have to do this by hand for SLAAC to work!?
 		ESP_ERROR_CHECK(esp_netif_create_ip6_linklocal(wifi_netif));
 		ESP_ERROR_CHECK(dhcp6_enable_stateless(
 				esp_netif_get_netif_impl(wifi_netif)));
@@ -198,16 +192,12 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 static void ip_event_handler(void* arg, esp_event_base_t event_base,
 		int32_t event_id, void* event_data)
 {
-	char ip_buf[40];
-
 	assert(event_base == IP_EVENT);
 	switch (event_id) {
 	case IP_EVENT_STA_GOT_IP:
 		ip_event_got_ip_t *event = (ip_event_got_ip_t*) event_data;
 		ESP_LOGI(TAG, "got ipv4:" IPSTR,
 				IP2STR(&event->ip_info.ip));
-		//snprintf(ip_buf, sizeof(ip_buf),
-		//		IPSTR, IP2STR(&event->ip_info.ip));
 		on_ready(arg);
 		break;
 	case IP_EVENT_GOT_IP6:
@@ -216,10 +206,6 @@ static void ip_event_handler(void* arg, esp_event_base_t event_base,
 				IPV62STR(event6->ip6_info.ip));
 		if (esp_netif_ip6_get_addr_type(&event6->ip6_info.ip)
 				== ESP_IP6_ADDR_IS_GLOBAL) {
-			//ESP_LOGI(TAG, "It is global, can use!");
-			//snprintf(ip_buf, sizeof(ip_buf), IPV6STR,
-			//		IPV62STR(event6->ip6_info.ip));
-			//draw_status(arg, ip_buf);
 			on_ready(arg);
 		}
 		break;
