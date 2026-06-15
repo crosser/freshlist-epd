@@ -1,6 +1,6 @@
 # Kconfig file for UC8179 SPI E-Paper panels
 
-menu "SPI Controller and Pins (Board dependent)"
+menu "E-Paper Panel and SPI bus configuration"
 
 	choice
 		prompt "SPI Host for the display controller"
@@ -19,10 +19,6 @@ menu "SPI Controller and Pins (Board dependent)"
 
 	config HWE_DISPLAY_SPI_MISO
 		int "MISO (Master In Slave Out) pin number of SPI bus"
-
-endmenu
-
-menu "E-Paper Panel Pins (Panel dependent)"
 
 	config HWE_DISPLAY_SPI_FREQUENCY
 		int "SPI Frequency for the Display Controller"
@@ -60,6 +56,14 @@ menu "E-Paper Panel Pins (Panel dependent)"
 
 	config HWE_DISPLAY_LED
 		int "LED to turn on while display is updating"
+		default -1
+
+	config HWE_DISPLAY_LED_ON_LVL
+		int "GPIO level (0 or 1) that makes LED shine"
+		default 1
+
+	config HWE_DISPLAY_ENABLE
+		int "ENABLE pin number for display controller"
 		default -1
 
 	config HWE_DISPLAY_WIDTH

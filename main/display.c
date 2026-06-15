@@ -131,7 +131,11 @@ void run_display(QueueHandle_t stream)
 				CONFIG_HWE_DISPLAY_RST_ACTIVE_LEVEL,
 			.vendor_config =
 				&(esp_lcd_uc8179_config_t) {
-					.led_gpio_num =CONFIG_HWE_DISPLAY_LED,
+					.led_gpio_num =	CONFIG_HWE_DISPLAY_LED,
+					.led_on_lvl =
+						CONFIG_HWE_DISPLAY_LED_ON_LVL,
+					.enable_gpio_num =
+						CONFIG_HWE_DISPLAY_ENABLE,
 					.busy_gpio_num =
 						CONFIG_HWE_DISPLAY_BUSY,
 					.busy_gpio_lvl =
