@@ -17,7 +17,6 @@
 
 #include "lvscreen.h"
 #include "wifi.h"
-#include "battery.h"
 #include "sdkconfig.h"
 
 #define TAG "freshlist"
@@ -87,7 +86,7 @@ static void disp_flush_cb(lv_display_t *disp, const lv_area_t *area,
 			px_map + 8));
 }
 
-void run_display(QueueHandle_t stream)
+void run_display(QueueHandle_t stream, int rssi, int battery)
 {
 	ESP_LOGI(TAG, "Initializing SPI bus");
 	ESP_ERROR_CHECK(spi_bus_initialize(SPIx_HOST,
@@ -188,8 +187,8 @@ void run_display(QueueHandle_t stream)
 				LV_TICK_PERIOD_MS * 1000));
 	ESP_LOGI(TAG, "Initializing LVGL Display...");
 	init_screen(disp);
-	ESP_LOGI(TAG, "Writing battery value");
-	write_battery(disp, battery());
+	ESP_LOGI(TAG, "Writing battery %d and rssi %d", battery, rssi);
+	write_battery_rssi(disp, battery, rssi);
 	ESP_LOGI(TAG, "Going into update loop...");
 	int linecount = 0;
 	while (pdFALSE == xSemaphoreTake(trans_done_ctx.sema, 0)) {

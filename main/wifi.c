@@ -125,13 +125,6 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 					i, ap_records[i].ssid,
 					ap_records[i].primary,
 					ap_records[i].rssi);
-			char s_rssi[10];
-			snprintf(s_rssi, sizeof(s_rssi), "%02u %02d",
-					ap_records[i].primary,
-					ap_records[i].rssi);
-			char s_ssid[34];
-			snprintf(s_ssid, sizeof(s_ssid), "%.33s",
-					ap_records[i].ssid);
 			if (cred_id < 0) {
 				for (int j = 0; wifi_creds[j].ssid; j++) {
 					if (!strncmp(
@@ -215,7 +208,7 @@ static void ip_event_handler(void* arg, esp_event_base_t event_base,
 	}
 }
 
-esp_err_t init_wifi()
+esp_err_t init_wifi(int *rssip)
 {
 	setenv("TZ", CONFIG_TZSPEC, true);
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -247,7 +240,8 @@ esp_err_t init_wifi()
 	ESP_ERROR_CHECK(esp_wifi_start());
 	ESP_LOGI(TAG, "cycle started, waiting for connectivity...");
 	xSemaphoreTake(ready, portMAX_DELAY);
-	ESP_LOGI(TAG, "Wifi fully initialized");
+	ESP_ERROR_CHECK(esp_wifi_sta_get_rssi(rssip));
+	ESP_LOGI(TAG, "Wifi fully initialized, rssi=%d", *rssip);
 	vSemaphoreDelete(ready);
 	return ESP_OK;
 }

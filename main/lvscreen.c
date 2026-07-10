@@ -95,6 +95,33 @@ static void battery_draw_cb(lv_event_t * e)
 	lv_draw_rect(layer, &inside, &a);
 }
 
+static void signal_draw_cb(lv_event_t * e)
+{
+	lv_obj_t *obj = lv_event_get_target(e);
+	int value = (intptr_t)lv_obj_get_user_data(obj);
+	lv_layer_t *layer = lv_event_get_layer(e);
+	lv_area_t obj_coords;
+	lv_obj_get_coords(obj, &obj_coords);
+
+	lv_draw_rect_dsc_t bar;
+	lv_draw_rect_dsc_init(&bar);
+	bar.border_width = 1;
+	lv_area_t a;
+	lv_color_t black = lv_color_make(255, 255, 255);
+	lv_color_t white = lv_color_make(0, 0, 0);
+	bar.border_color = black;
+	for (int i = 0; i < 5; i++) {
+		bar.bg_color = (i <= value) ? black : white;
+		a.x1 = obj_coords.x1 + i * 9;
+		a.x2 = a.x1 + 5;
+		a.y1 = obj_coords.y1 + (4 - i) * 5;
+		a.y2 = 22;
+		// lv_area_align(&obj_coords, &a, LV_ALIGN_TOP_LEFT,
+		//		i * 9 + 8, 0);
+		lv_draw_rect(layer, &(bar), &a);
+	}
+}
+
 static struct panes {
 	lv_obj_t *signal;
 	lv_obj_t *title;
@@ -255,6 +282,7 @@ void init_screen(lv_display_t *disp)
 	lv_obj_add_style(obj, &indicator_style, LV_PART_MAIN);
 	lv_obj_align_to(obj, panes.title, LV_ALIGN_OUT_LEFT_MID, 0, 0);
 	lv_label_set_text_static(obj, " ");
+	lv_obj_add_event_cb(obj, signal_draw_cb, LV_EVENT_DRAW_MAIN, NULL);
 	panes.signal = obj;
 	obj = lv_label_create(scr);
 	lv_obj_add_style(obj, &indicator_style, LV_PART_MAIN);
@@ -300,9 +328,10 @@ void write_screen(lv_display_t *disp, int row, char *msg)
 	process_line(disp, row, msg);
 }
 
-void write_battery(lv_display_t *disp, int mV)
+void write_battery_rssi(lv_display_t *disp, int mV, int rssi)
 {
-	lv_obj_t *lbl = panes.battery;
+	lv_obj_t *lbl;
+	lbl = panes.battery;
 	lv_obj_clean(lbl);
 #if 0
 	lv_label_set_text_fmt(lbl, "%d", mV);
@@ -311,7 +340,20 @@ void write_battery(lv_display_t *disp, int mV)
 		(CONFIG_BATTERY_ADC_MAX - CONFIG_BATTERY_ADC_MIN);
 	if (level < 0) level = 0;
 	if (level > 100) level = 100;
+	ESP_LOGI(TAG, "Drawing battery %d%%", level);
 	lv_obj_set_user_data(lbl, (void*)level);
+	lv_obj_invalidate(lbl);
+#endif
+	lbl = panes.signal;
+	lv_obj_clean(lbl);
+#if 0
+	lv_label_set_text_fmt(lbl, "%d", rssi);
+#else
+	int signal = (100 + rssi) / 10;
+	if (signal < 0) signal = 0;
+	if (signal > 4) signal = 4;
+	ESP_LOGI(TAG, "Drawing signal %d bars", signal);
+	lv_obj_set_user_data(lbl, (void*)signal);
 	lv_obj_invalidate(lbl);
 #endif
 }

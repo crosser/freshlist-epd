@@ -7,7 +7,7 @@
 
 void init_screen(lv_display_t *disp);
 void write_screen(lv_display_t *disp, int linecount, char *line);
-void write_battery(lv_display_t *disp, int value);
+void write_battery_rssi(lv_display_t *disp, int battery, int rssi);
 void stop_screen(lv_display_t *disp);
 
 #endif

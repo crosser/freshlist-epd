@@ -20,12 +20,13 @@ void app_main(void)
 {
 	esp_err_t res;
 	void *null = NULL;
+	int rssi;
 
 	ESP_LOGI(TAG, "Initialize battery ADC");
 	init_battery_adc();
 	QueueHandle_t stream = xQueueCreate(4, sizeof(void*));
 	ESP_LOGI(TAG, "Initialize wifi");
-	if ((res = init_wifi()) == ESP_OK) {
+	if ((res = init_wifi(&rssi)) == ESP_OK) {
 		res = httpc(stream);
 	}
 	if (res != ESP_OK) {
@@ -37,7 +38,7 @@ void app_main(void)
 			http_invalidate_last_modified();
 		}
 		ESP_LOGI(TAG, "Update display");
-		run_display(stream);
+		run_display(stream, rssi, battery());
 	}
 	ESP_LOGI(TAG, "Deinitialize wifi");
 	deinit_wifi();  // Could do this earlier and save energy... Some time.
