@@ -11,6 +11,7 @@ static const char *TAG = "LV display";
 #define LINE_HEIGHT (CONFIG_HWE_DISPLAY_HEIGHT / (DISPLAY_ROWS + 2))
 #define PFX_WIDTH (CONFIG_HWE_DISPLAY_WIDTH * 2 / 7)
 #define MSG_WIDTH (CONFIG_HWE_DISPLAY_WIDTH - (CONFIG_HWE_DISPLAY_WIDTH / 4))
+#define IND_WIDTH (CONFIG_HWE_DISPLAY_WIDTH / 10)
 
 LV_FONT_DECLARE(UbuntuSans);
 LV_FONT_DECLARE(UbuntuSansMono);
@@ -47,6 +48,8 @@ static LV_STYLE_CONST_INIT(main_msg_style,
 static LV_STYLE_CONST_INIT(status_style,
 	((static lv_style_const_prop_t []){
 		LV_STYLE_CONST_HEIGHT(LINE_HEIGHT),
+		LV_STYLE_CONST_WIDTH(LV_PCT(84)),
+		LV_STYLE_CONST_TEXT_ALIGN(LV_TEXT_ALIGN_CENTER),
 		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
 		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
 		LV_STYLE_CONST_TEXT_FONT(&UbuntuSansMono),
@@ -54,8 +57,48 @@ static LV_STYLE_CONST_INIT(status_style,
 		LV_STYLE_CONST_PROPS_END,
 	}));
 
+static LV_STYLE_CONST_INIT(indicator_style,
+	((static lv_style_const_prop_t []){
+		LV_STYLE_CONST_HEIGHT(LINE_HEIGHT),
+		LV_STYLE_CONST_WIDTH(LV_PCT(8)),
+		LV_STYLE_CONST_BG_COLOR(LV_COLOR_MAKE(0, 0, 0)),
+		LV_STYLE_CONST_BG_OPA(LV_OPA_100),
+		LV_STYLE_CONST_TEXT_FONT(&UbuntuSansMono),
+		LV_STYLE_CONST_TEXT_COLOR(LV_COLOR_MAKE(255, 255, 255)),
+		LV_STYLE_CONST_PROPS_END,
+	}));
+
+static void battery_draw_cb(lv_event_t * e)
+{
+	lv_obj_t *obj = lv_event_get_target(e);
+	int value = (intptr_t)lv_obj_get_user_data(obj);
+	lv_layer_t *layer = lv_event_get_layer(e);
+	lv_area_t obj_coords;
+	lv_obj_get_coords(obj, &obj_coords);
+	lv_area_t a = { .x1 = 2, .x2 = 60, .y1 = 2, .y2 = 26, };
+	lv_area_align(&obj_coords, &a, LV_ALIGN_TOP_RIGHT, 0, 0);
+
+	lv_draw_rect_dsc_t box;
+	lv_draw_rect_dsc_init(&box);
+	box.border_width = 3;
+	box.border_color = lv_color_make(255, 255, 255);
+	box.bg_opa = LV_OPA_0;
+	lv_draw_rect(layer, &box, &a);
+	a.x1 += 2;
+	a.x2 = a.x1 + (value * 56 / 100) - 4;
+	a.y1 += 2;
+	a.y2 -= 2;
+	lv_draw_rect_dsc_t inside;
+	lv_draw_rect_dsc_init(&inside);
+	inside.border_width = 0;
+	inside.bg_color = lv_color_make(255, 255, 255);
+	lv_draw_rect(layer, &inside, &a);
+}
+
 static struct panes {
+	lv_obj_t *signal;
 	lv_obj_t *title;
+	lv_obj_t *battery;
 	struct {
 		lv_obj_t *pfx;
 		lv_obj_t *msg;
@@ -208,6 +251,17 @@ void init_screen(lv_display_t *disp)
 	lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 0);
 	lv_label_set_text_static(obj, " ");
 	panes.title = obj;
+	obj = lv_label_create(scr);
+	lv_obj_add_style(obj, &indicator_style, LV_PART_MAIN);
+	lv_obj_align_to(obj, panes.title, LV_ALIGN_OUT_LEFT_MID, 0, 0);
+	lv_label_set_text_static(obj, " ");
+	panes.signal = obj;
+	obj = lv_label_create(scr);
+	lv_obj_add_style(obj, &indicator_style, LV_PART_MAIN);
+	lv_obj_align_to(obj, panes.title, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+	lv_label_set_text_static(obj, " ");
+	lv_obj_add_event_cb(obj, battery_draw_cb, LV_EVENT_DRAW_MAIN, NULL);
+	panes.battery = obj;
 	for (int i = 0; i < DISPLAY_ROWS; i++) {
 		obj = lv_label_create(scr);
 		lv_obj_add_style(obj, &main_pfx_style, LV_PART_MAIN);
@@ -244,6 +298,22 @@ void write_screen(lv_display_t *disp, int row, char *msg)
 		return;
 	}
 	process_line(disp, row, msg);
+}
+
+void write_battery(lv_display_t *disp, int mV)
+{
+	lv_obj_t *lbl = panes.battery;
+	lv_obj_clean(lbl);
+#if 0
+	lv_label_set_text_fmt(lbl, "%d", mV);
+#else
+	int level = (mV - CONFIG_BATTERY_ADC_MIN) * 100 /
+		(CONFIG_BATTERY_ADC_MAX - CONFIG_BATTERY_ADC_MIN);
+	if (level < 0) level = 0;
+	if (level > 100) level = 100;
+	lv_obj_set_user_data(lbl, (void*)level);
+	lv_obj_invalidate(lbl);
+#endif
 }
 
 void stop_screen(lv_display_t *disp)

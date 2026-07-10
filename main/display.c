@@ -17,6 +17,7 @@
 
 #include "lvscreen.h"
 #include "wifi.h"
+#include "battery.h"
 #include "sdkconfig.h"
 
 #define TAG "freshlist"
@@ -187,6 +188,8 @@ void run_display(QueueHandle_t stream)
 				LV_TICK_PERIOD_MS * 1000));
 	ESP_LOGI(TAG, "Initializing LVGL Display...");
 	init_screen(disp);
+	ESP_LOGI(TAG, "Writing battery value");
+	write_battery(disp, battery());
 	ESP_LOGI(TAG, "Going into update loop...");
 	int linecount = 0;
 	while (pdFALSE == xSemaphoreTake(trans_done_ctx.sema, 0)) {

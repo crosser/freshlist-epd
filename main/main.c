@@ -10,6 +10,7 @@
 #include "wifi.h"
 #include "httpc.h"
 #include "display.h"
+#include "battery.h"
 
 #define TAG "freshlist"
 
@@ -20,6 +21,8 @@ void app_main(void)
 	esp_err_t res;
 	void *null = NULL;
 
+	ESP_LOGI(TAG, "Initialize battery ADC");
+	init_battery_adc();
 	QueueHandle_t stream = xQueueCreate(4, sizeof(void*));
 	ESP_LOGI(TAG, "Initialize wifi");
 	if ((res = init_wifi()) == ESP_OK) {
@@ -38,6 +41,8 @@ void app_main(void)
 	}
 	ESP_LOGI(TAG, "Deinitialize wifi");
 	deinit_wifi();  // Could do this earlier and save energy... Some time.
+	ESP_LOGI(TAG, "Deinitialize battery ADC");
+	stop_battery_adc();
 	vQueueDelete(stream);
 	ESP_LOGI(TAG, "Going to deep sleep for %d sec", SLEEP_TIME);
 	esp_deep_sleep(1000000LL * SLEEP_TIME);

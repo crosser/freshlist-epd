@@ -72,6 +72,30 @@ menu "E-Paper Panel and SPI bus configuration"
 	config HWE_DISPLAY_HEIGHT
 		int "Display height"
 
+	config HWE_BATTERY_ADC
+		int "Battery voltage ADC pin number"
+		default 1
+
+	config HWE_BATTERY_ADC_ENABLE
+		int "ADC enable pin"
+		default 6
+
+	config BATTERY_ADC_MIN
+		int "Battery ADC min votage (mV)"
+		default 1450
+		help
+			ADC reading corresponding to voltage of
+			fully discharged battery. On many dev boards,
+			half of battery voltage. 2.9V -> 1450 adc value
+
+	config BATTERY_ADC_MAX
+		int "Battery ADC max votage (mV)"
+		default 2050
+		help
+			ADC reading corresponding to voltage of
+			fully charged battery. On many dev boards,
+			half of battery voltage. 4.1V -> 2050 adc value
+
 endmenu
 
 menu "WiFi name and WPAx password"
