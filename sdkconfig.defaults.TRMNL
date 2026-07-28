@@ -1,5 +1,5 @@
 # This file was generated using idf.py save-defconfig or menuconfig [D] key. It can be edited manually.
-# Espressif IoT Development Framework (ESP-IDF) 6.0.1 Project Minimal Configuration
+# Espressif IoT Development Framework (ESP-IDF) 6.0.2 Project Minimal Configuration
 #
 # default:
 CONFIG_IDF_TARGET="esp32s3"
@@ -23,6 +23,7 @@ CONFIG_ETH_USE_SPI_ETHERNET=n
 CONFIG_ESP_HTTP_CLIENT_ENABLE_BASIC_AUTH=y
 CONFIG_ESP_HTTP_CLIENT_ENABLE_DIGEST_AUTH=y
 CONFIG_LCD_ENABLE_DEBUG_LOG=y
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=7168
 CONFIG_LWIP_IPV6_AUTOCONFIG=y
 CONFIG_LWIP_IPV6_RDNSS_MAX_DNS_SERVERS=1
 CONFIG_LWIP_IPV6_DHCP6=y
