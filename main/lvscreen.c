@@ -166,7 +166,7 @@ static void show_entry(lv_display_t *disp, int n, char *pfx, char *msg)
 	ESP_LOGD(TAG, "%d: pfx=%s, msg=%s", n, pfx, msg);
 	struct tm when = {};
 	char tbuf[32] = {};
-	strptime(pfx, "%a %b %d %T %Y", &when);
+	strptime(pfx, "%Y-%m-%d %T%z", &when);
 	strftime(tbuf, sizeof(tbuf), "%m-%d %H:%M", &when);
 
 	// Let's compress the message
