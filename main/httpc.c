@@ -30,6 +30,7 @@
 #define BUFFER_SIZE 256
 
 RTC_DATA_ATTR static struct tm last_modified = {};
+RTC_DATA_ATTR static time_t update_time = (time_t)0;
 
 typedef struct {
 	QueueHandle_t stream;
@@ -158,6 +159,7 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
 		ESP_LOGI(TAG, "Event HTTP_EVENT_ON_STATUS_CODE %d",
 				*(uint32_t*)(evt->data));
 		if (*(uint32_t*)(evt->data) == 200) {
+			time(&update_time);
 			data_ctx->http_ctx->ret = ESP_ERR_NOT_FINISHED;
 			xSemaphoreGive(data_ctx->http_ctx->done);
 			data_ctx->http_ctx = NULL; // it is in parent stack
@@ -211,10 +213,15 @@ static void httpc_run(void *user_ctx)
 			.user_data = &data_ctx,
 		}
 	);
-	char lmbuf[32] = {};
-	strftime(lmbuf, sizeof(lmbuf), "%a, %d %b %Y %T %Z", &last_modified);
-	ESP_LOGI(TAG, "Adding If-Modified-Since: %s", lmbuf);
-	esp_http_client_set_header(client, "If-Modified-Since", lmbuf);
+	time_t now;
+	time(&now);
+	if (now - update_time < 86400) {  // Force update at least once a day
+		char lmbuf[32] = {};
+		strftime(lmbuf, sizeof(lmbuf), "%a, %d %b %Y %T %Z",
+				&last_modified);
+		ESP_LOGI(TAG, "Adding If-Modified-Since: %s", lmbuf);
+		esp_http_client_set_header(client, "If-Modified-Since", lmbuf);
+	}
 
 	esp_err_t err = esp_http_client_perform(client);
 	if (err == ESP_OK) {
