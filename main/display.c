@@ -191,18 +191,22 @@ void run_display(QueueHandle_t stream, int rssi, int battery)
 	write_battery_rssi(disp, battery, rssi);
 	ESP_LOGI(TAG, "Going into update loop...");
 	int linecount = 0;
-	while (pdFALSE == xSemaphoreTake(trans_done_ctx.sema, 0)) {
-		char *line = NULL;
-		while (pdTRUE == xQueueReceive(stream, &line,
-					pdMS_TO_TICKS(10))) {
-			if (line) {
-				write_screen(disp, linecount, line);
-				linecount++;
-				free(line);
-			}
+	char *line = NULL;
+	while (true) {
+		xQueueReceive(stream, &line, portMAX_DELAY);
+		ESP_LOGI(TAG, "Got line %d that is %s",
+				linecount, line ? line : "NULL");
+		if (line) {
+			write_screen(disp, linecount, line);
+			linecount++;
+			free(line);
+		} else {
+			break;
 		}
-		lv_task_handler();
 	}
+	lv_task_handler();
+	ESP_LOGI(TAG, "Drawing finished");
+	xSemaphoreTake(trans_done_ctx.sema, portMAX_DELAY);
 	ESP_LOGI(TAG, "Loop finished");
 	stop_screen(disp);
 	vSemaphoreDelete(trans_done_ctx.sema);
